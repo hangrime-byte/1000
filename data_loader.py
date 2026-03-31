@@ -31,16 +31,40 @@ def download_etf_data(tickers=TICKERS, start=START_DATE, end=END_DATE, save=True
     if yf is None:
         raise ImportError("yfinance is not installed. Please install it or provide cached data.")
 
-    data = yf.download(tickers, start=start, end=end, auto_adjust=True)
-
-    if isinstance(data.columns, pd.MultiIndex):
-        prices = data["Close"][tickers]
-    else:
-        prices = data[["Close"]]
-        prices.columns = tickers
+    # yfinance 버전에 따라 auto_adjust 동작이 다름
+    # auto_adjust=False로 다운로드 후 Adj Close 사용 (가장 안정적)
+    try:
+        data = yf.download(tickers, start=start, end=end, auto_adjust=False)
+        if isinstance(data.columns, pd.MultiIndex):
+            if "Adj Close" in data.columns.get_level_values(0):
+                prices = data["Adj Close"][tickers]
+            else:
+                prices = data["Close"][tickers]
+        else:
+            if "Adj Close" in data.columns:
+                prices = data[["Adj Close"]]
+            else:
+                prices = data[["Close"]]
+            prices.columns = tickers
+    except TypeError:
+        # 일부 yfinance 버전에서 auto_adjust 파라미터 미지원
+        data = yf.download(tickers, start=start, end=end)
+        if isinstance(data.columns, pd.MultiIndex):
+            prices = data["Close"][tickers]
+        else:
+            prices = data[["Close"]]
+            prices.columns = tickers
 
     prices = prices.dropna()
     prices.index = pd.to_datetime(prices.index)
+
+    # 데이터 검증: 이상치 제거 (배당/분할 미조정 감지)
+    returns_check = prices.pct_change().dropna()
+    extreme = (returns_check.abs() > 0.5).any(axis=1)  # 50% 이상 일일 변동
+    if extreme.sum() > 0:
+        print(f"Warning: {extreme.sum()} extreme return days detected, check data quality")
+
+    print(f"Downloaded {len(prices)} observations")
 
     if save:
         os.makedirs(DATA_DIR, exist_ok=True)
