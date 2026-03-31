@@ -173,8 +173,11 @@ cat("Average weights:\n")
 print(round(colMeans(w_mcp), 4))
 
 # 최소연결성 포트폴리오 (MCoP)
+# returns와 PCI 길이 맞추기 (PCI는 변동성 기반이라 더 짧음)
+T_pci <- dim(dca$PCI)[3]
+returns_aligned_mcop <- tail(as.zoo(returns) / 100, T_pci)
 mcop <- MinimumConnectednessPortfolio(
-  as.zoo(returns) / 100,
+  returns_aligned_mcop,
   dca$PCI,
   statistics = "Fisher"
 )
