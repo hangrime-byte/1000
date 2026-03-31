@@ -88,10 +88,13 @@ class TVPVAR:
         S0 = (resid_init.T @ resid_init) / init_end
 
         if self.prior == "BayesPrior":
-            # BayesPrior (Primiceri, 2005): OLS 기반이지만 수축(shrinkage) 적용
-            # gamma가 작을수록 계수를 0 방향으로 강하게 수축
-            b0 = B_ols.T.flatten() * self.gamma
-            P0 = np.eye(ncoef) * self.gamma
+            # BayesPrior (Primiceri, 2005):
+            # b0 = OLS 계수 (그대로 유지)
+            # P0 = gamma × Var(OLS) = gamma × kron(S0, (Z'Z)^{-1})
+            # gamma가 작을수록 OLS 추정치를 확신 → 계수 변동 억제 → 안정적
+            b0 = B_ols.T.flatten()
+            V_ols = np.kron(S0, ZtZ_inv)  # OLS 계수의 분산-공분산 행렬
+            P0 = self.gamma * V_ols
         else:
             # OLS Prior: 수축 없는 순수 OLS 초기값
             b0 = B_ols.T.flatten()
