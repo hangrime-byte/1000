@@ -115,7 +115,7 @@ tvpvar_model <- TVPVAR(as.zoo(volatility),
                        ))
 
 # 헤지비율 (Kroner & Sultan, 1993)
-hr <- HedgeRatio(as.matrix(volatility), tvpvar_model$Q)
+hr <- HedgeRatio(as.zoo(volatility), tvpvar_model$Q)
 cat("\n--- Average Hedge Ratios ---\n")
 hr_table <- matrix(as.numeric(hr$TABLE[1:n, 1:n]), nrow = n,
                    dimnames = list(tickers, tickers))
@@ -129,20 +129,20 @@ cat("[Step 5] Portfolio Optimization\n")
 cat(rep("=", 70), "\n", sep="")
 
 # 최소분산 포트폴리오 (MVP)
-mvp <- MinimumVariancePortfolio(as.matrix(returns) / 100, tvpvar_model$Q)
+mvp <- MinimumVariancePortfolio(as.zoo(returns) / 100, tvpvar_model$Q)
 cat("\n--- Minimum Variance Portfolio (MVP) ---\n")
 cat("Average weights:\n")
 print(round(colMeans(mvp$Weights), 4))
 
 # 최소상관 포트폴리오 (MCP)
-mcp <- MinimumCorrelationPortfolio(as.matrix(returns) / 100, tvpvar_model$Q)
+mcp <- MinimumCorrelationPortfolio(as.zoo(returns) / 100, tvpvar_model$Q)
 cat("\n--- Minimum Correlation Portfolio (MCP) ---\n")
 cat("Average weights:\n")
 print(round(colMeans(mcp$Weights), 4))
 
 # 최소연결성 포트폴리오 (MCoP)
 mcop <- MinimumConnectednessPortfolio(
-  as.matrix(returns) / 100,
+  as.zoo(returns) / 100,
   dca$PCI,
   statistics = "Fisher"
 )
@@ -171,7 +171,7 @@ portfolio_stats <- function(r, name) {
 # Equal Weight
 n <- ncol(returns)
 T_port <- min(nrow(mvp$Weights), nrow(returns))
-ret_aligned <- tail(as.matrix(returns) / 100, T_port)
+ret_aligned <- tail(as.zoo(returns) / 100, T_port)
 
 r_equal <- rowSums(ret_aligned * (1/n))
 r_mvp <- rowSums(ret_aligned * tail(mvp$Weights, T_port))
