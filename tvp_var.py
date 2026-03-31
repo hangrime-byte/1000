@@ -35,10 +35,12 @@ class TVPVAR:
         kappa2: decay factor for error covariance (κ), default 0.96
     """
 
-    def __init__(self, nlag=1, kappa1=0.99, kappa2=0.96):
+    def __init__(self, nlag=1, kappa1=0.99, kappa2=0.96, prior="BayesPrior", gamma=0.01):
         self.nlag = nlag
         self.kappa1 = kappa1  # λ: forgetting factor for coefficients
         self.kappa2 = kappa2  # κ: decay factor for error covariance
+        self.prior = prior    # "BayesPrior" (Primiceri 2005) or "OLS"
+        self.gamma = gamma    # prior tightness (BayesPrior only)
 
     def fit(self, data):
         """TVP-VAR 모형을 추정한다.
@@ -73,21 +75,27 @@ class TVPVAR:
         Sigma_store = np.zeros((T, N, N))
         Phi_store = np.zeros((T, N, N * p))  # 원래 행렬 형태 계수
 
-        # === 초기화 (OLS by first 200 obs or all available) ===
+        # === Prior 초기화 ===
         init_end = min(200, T)
         y_init = y[:init_end]
         Z_init = Z[:init_end]
 
-        # OLS: vec(B_0) = (Z'Z)^{-1} Z'y
+        # OLS 추정 (초기값 기반)
         ZtZ = Z_init.T @ Z_init
         ZtZ_inv = np.linalg.inv(ZtZ + 1e-8 * np.eye(ZtZ.shape[0]))
         B_ols = ZtZ_inv @ (Z_init.T @ y_init)  # (N*p) × N
-        b0 = B_ols.T.flatten()  # vec(B_0'), N*(N*p) 형태
-
-        # 초기 상태 공분산
         resid_init = y_init - Z_init @ B_ols
         S0 = (resid_init.T @ resid_init) / init_end
-        P0 = np.eye(ncoef) * 10  # 넓은 사전분포
+
+        if self.prior == "BayesPrior":
+            # BayesPrior (Primiceri, 2005): OLS 기반이지만 수축(shrinkage) 적용
+            # gamma가 작을수록 계수를 0 방향으로 강하게 수축
+            b0 = B_ols.T.flatten() * self.gamma
+            P0 = np.eye(ncoef) * self.gamma
+        else:
+            # OLS Prior: 수축 없는 순수 OLS 초기값
+            b0 = B_ols.T.flatten()
+            P0 = np.eye(ncoef) * 10
 
         # === Kalman Filter with Forgetting Factors ===
         b_tt = b0.copy()

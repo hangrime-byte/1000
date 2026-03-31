@@ -37,6 +37,8 @@ NLAG = 1          # VAR 시차
 NFORE = 10        # GFEVD 예측 수평선 (H-step ahead), R ConnectednessApproach 기본값
 KAPPA1 = 0.99     # Forgetting factor for VAR coefficients (Koop & Korobilis, 2014)
 KAPPA2 = 0.96     # Decay factor for error covariance (Antonakakis et al., 2020)
+PRIOR = "BayesPrior"  # Prior 초기화 방식: "BayesPrior" (Primiceri 2005) 또는 "OLS"
+GAMMA = 0.01          # BayesPrior 수축 강도 (R패키지 기본값, 작을수록 강한 수축)
 USE_VOLATILITY = True   # True: 변동성 시계열 (논문 키워드: 변동성 전이)
 VOL_WINDOW = 22         # 변동성 롤링 윈도우 (22거래일 ≈ 1개월, 표준)
 
@@ -117,10 +119,12 @@ def main():
     print("\n" + "=" * 70)
     print("[Step 2] TVP-VAR Dynamic Connectedness Analysis")
     print(f"  nlag={NLAG}, nfore={NFORE}, kappa1={KAPPA1}, kappa2={KAPPA2}")
+    print(f"  prior={PRIOR}, gamma={GAMMA}")
     print("=" * 70)
 
     conn_results = dynamic_connectedness(
-        data, nlag=NLAG, nfore=NFORE, kappa1=KAPPA1, kappa2=KAPPA2
+        data, nlag=NLAG, nfore=NFORE, kappa1=KAPPA1, kappa2=KAPPA2,
+        prior=PRIOR, gamma=GAMMA
     )
 
     # --------------------------------------------------------

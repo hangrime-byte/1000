@@ -119,7 +119,8 @@ def compute_connectedness_measures(theta_norm):
     }
 
 
-def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
+def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96,
+                          prior="BayesPrior", gamma=0.01):
     """TVP-VAR 기반 동적 연결성을 계산한다.
 
     Args:
@@ -128,6 +129,8 @@ def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
         nfore: GFEVD 예측 수평선
         kappa1: forgetting factor (계수)
         kappa2: decay factor (공분산)
+        prior: "BayesPrior" (Primiceri 2005) 또는 "OLS"
+        gamma: BayesPrior 수축 강도 (R패키지 기본값 0.01)
 
     Returns:
         results: dict
@@ -149,7 +152,8 @@ def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
         data_np = data
 
     # 1. TVP-VAR 추정
-    model = TVPVAR(nlag=nlag, kappa1=kappa1, kappa2=kappa2)
+    model = TVPVAR(nlag=nlag, kappa1=kappa1, kappa2=kappa2,
+                   prior=prior, gamma=gamma)
     model.fit(data_np)
 
     T = model.T
