@@ -128,17 +128,49 @@ cat("\n", rep("=", 70), "\n", sep="")
 cat("[Step 5] Portfolio Optimization\n")
 cat(rep("=", 70), "\n", sep="")
 
-# 최소분산 포트폴리오 (MVP)
-mvp <- MinimumVariancePortfolio(as.zoo(returns) / 100, tvpvar_model$Q)
+# MVP 함수 (직접 구현): min w'Σw s.t. w'1=1, w>=0
+calc_mvp <- function(Sigma) {
+  n <- nrow(Sigma)
+  Sigma_inv <- tryCatch(solve(Sigma + diag(n) * 1e-8), error = function(e) diag(n))
+  w <- Sigma_inv %*% rep(1, n)
+  w <- as.numeric(w / sum(w))
+  w <- pmax(w, 0)
+  w / sum(w)
+}
+
+# MCP 함수 (직접 구현): 상관행렬의 MVP → 변동성 역수로 스케일링
+calc_mcp <- function(Sigma) {
+  n <- nrow(Sigma)
+  sigma_vec <- sqrt(pmax(diag(Sigma), 1e-10))
+  D_inv <- diag(1 / sigma_vec)
+  R <- D_inv %*% Sigma %*% D_inv
+  w_R <- calc_mvp(R)
+  w <- D_inv %*% w_R
+  w <- as.numeric(w / sum(w))
+  w <- pmax(w, 0)
+  w / sum(w)
+}
+
+# 동적 MVP/MCP 계산
+Q <- tvpvar_model$Q
+T_q <- dim(Q)[3]
+w_mvp <- matrix(0, T_q, n)
+w_mcp <- matrix(0, T_q, n)
+colnames(w_mvp) <- colnames(w_mcp) <- tickers
+
+for (t in 1:T_q) {
+  Sigma_t <- Q[,,t]
+  w_mvp[t,] <- calc_mvp(Sigma_t)
+  w_mcp[t,] <- calc_mcp(Sigma_t)
+}
+
 cat("\n--- Minimum Variance Portfolio (MVP) ---\n")
 cat("Average weights:\n")
-print(round(colMeans(mvp$Weights), 4))
+print(round(colMeans(w_mvp), 4))
 
-# 최소상관 포트폴리오 (MCP)
-mcp <- MinimumCorrelationPortfolio(as.zoo(returns) / 100, tvpvar_model$Q)
 cat("\n--- Minimum Correlation Portfolio (MCP) ---\n")
 cat("Average weights:\n")
-print(round(colMeans(mcp$Weights), 4))
+print(round(colMeans(w_mcp), 4))
 
 # 최소연결성 포트폴리오 (MCoP)
 mcop <- MinimumConnectednessPortfolio(
@@ -169,13 +201,12 @@ portfolio_stats <- function(r, name) {
 }
 
 # Equal Weight
-n <- ncol(returns)
-T_port <- min(nrow(mvp$Weights), nrow(returns))
-ret_aligned <- tail(as.zoo(returns) / 100, T_port)
+T_port <- min(nrow(w_mvp), nrow(returns))
+ret_aligned <- tail(as.matrix(returns) / 100, T_port)
 
 r_equal <- rowSums(ret_aligned * (1/n))
-r_mvp <- rowSums(ret_aligned * tail(mvp$Weights, T_port))
-r_mcp <- rowSums(ret_aligned * tail(mcp$Weights, T_port))
+r_mvp <- rowSums(ret_aligned * tail(w_mvp, T_port))
+r_mcp <- rowSums(ret_aligned * tail(w_mcp, T_port))
 r_mcop <- rowSums(ret_aligned * tail(mcop$Weights, T_port))
 
 perf <- rbind(
