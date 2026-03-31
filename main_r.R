@@ -9,6 +9,7 @@
 # install.packages("quantmod")
 library(ConnectednessApproach)
 library(quantmod)
+library(zoo)
 
 # ============================================================
 # 1. 데이터 다운로드
@@ -63,7 +64,7 @@ cat(rep("=", 70), "\n", sep="")
 # ConnectednessApproach 패키지로 TVP-VAR 연결성 분석
 # 논문과 동일한 설정: nlag=1, nfore=10, kappa1=0.99, kappa2=0.96, BayesPrior
 dca <- ConnectednessApproach(
-  as.matrix(volatility),
+  as.zoo(volatility),
   model = "TVP-VAR",
   connectedness = "Time",
   nlag = 1,
