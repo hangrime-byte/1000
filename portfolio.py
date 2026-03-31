@@ -95,18 +95,17 @@ def minimum_correlation_portfolio(Sigma):
     return w
 
 
-def minimum_connectedness_portfolio(returns, pci, method="Fisher"):
+def minimum_connectedness_portfolio(pci, method="Fisher"):
     """최소연결성 포트폴리오 (MCoP) 가중치를 계산한다.
 
     Broadstock et al. (2022) 방법론:
     연결성 행렬을 공분산 행렬 대신 사용하여 MVP와 동일 구조로 최적화
 
-    1. PCI_ij: 쌍별 순연결성 지표
+    1. PCI_ij: 쌍별 연결성 지표 (GFEVD 기반)
     2. Fisher 변환: z_ij = 0.5 * ln((1+c_ij)/(1-c_ij))
     3. 연결성 행렬로 MVP 구조 적용
 
     Args:
-        returns: T × N 수익률 배열
         pci: N × N 쌍별 연결성 행렬 (정규화된 GFEVD의 off-diagonal 합 기반)
         method: "Fisher" (Fisher 변환) 또는 "raw" (원래 값)
 
@@ -194,10 +193,7 @@ def compute_dynamic_portfolios(returns, Sigma_series, NPDC_series, columns=None)
 
         # MCoP
         pci_t = NPDC_series[t]
-        w_mcop[t] = minimum_connectedness_portfolio(
-            returns_aligned[:t+1] if t > 0 else returns_aligned[:1],
-            pci_t, method="Fisher"
-        )
+        w_mcop[t] = minimum_connectedness_portfolio(pci_t, method="Fisher")
 
     # 포트폴리오 수익률 계산
     r_mvp = np.sum(w_mvp * returns_aligned, axis=1)

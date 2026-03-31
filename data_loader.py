@@ -7,8 +7,12 @@ ETF 데이터 다운로드 및 전처리 모듈
 
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import os
+
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 
 TICKERS = ["USO", "VNQ", "IGF", "ICLN", "SPY"]
 ASSET_NAMES = ["Crude Oil", "Real Estate", "Infrastructure", "Clean Energy", "Equity"]
@@ -23,6 +27,9 @@ def download_etf_data(tickers=TICKERS, start=START_DATE, end=END_DATE, save=True
     """Yahoo Finance에서 ETF 종가 데이터를 다운로드한다."""
     print(f"Downloading ETF data: {tickers}")
     print(f"Period: {start} ~ {end}")
+
+    if yf is None:
+        raise ImportError("yfinance is not installed. Please install it or provide cached data.")
 
     data = yf.download(tickers, start=start, end=end, auto_adjust=True)
 

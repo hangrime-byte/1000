@@ -40,25 +40,26 @@ def compute_gfevd(Psi, Sigma, H):
     N = Sigma.shape[0]
     sigma_diag = np.diag(Sigma)  # σ_jj
 
-    # 분자: σ_jj^{-1} * [Σ_h (e_i' Ψ_h Σ e_j)]^2
+    # 분자: σ_jj^{-1} * Σ_h (e_i' Ψ_h Σ e_j)^2   ← 각 h에서 제곱 후 합산
     numerator = np.zeros((N, N))
     # 분모: Σ_h (e_i' Ψ_h Σ Ψ_h' e_i)
     denominator = np.zeros(N)
 
     for h in range(H):
         Psi_h = Psi[h]
-        PsiSigma = Psi_h @ Sigma
 
         for i in range(N):
             denominator[i] += Psi_h[i, :] @ Sigma @ Psi_h[i, :]
             for j in range(N):
-                numerator[i, j] += Psi_h[i, :] @ Sigma[:, j]
+                # 각 h-step 기여를 제곱하여 합산 (Pesaran & Shin, 1998)
+                val = Psi_h[i, :] @ Sigma[:, j]
+                numerator[i, j] += val ** 2
 
-    # θ_ij(H) = (numerator_ij)^2 / (σ_jj * denominator_i)
+    # θ_ij(H) = σ_jj^{-1} * numerator_ij / denominator_i
     theta = np.zeros((N, N))
     for i in range(N):
         for j in range(N):
-            theta[i, j] = (numerator[i, j] ** 2) / (sigma_diag[j] * denominator[i])
+            theta[i, j] = numerator[i, j] / (sigma_diag[j] * denominator[i])
 
     # 정규화: 행합 = 1
     row_sums = theta.sum(axis=1, keepdims=True)
@@ -184,19 +185,18 @@ def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
 
     GFEVD_table = pd.DataFrame(GFEVD_avg, index=columns, columns=columns)
 
-    # FROM/TO 합계 추가
-    GFEVD_table["FROM"] = GFEVD_table.sum(axis=1) - np.diag(GFEVD_avg)
-    gfevd_with_to = GFEVD_table.copy()
-    to_row = GFEVD_table.drop(columns=["FROM"]).sum(axis=0) - np.diag(GFEVD_avg)
-    to_row["FROM"] = GFEVD_table["FROM"].sum() / N  # TCI
-    gfevd_with_to.loc["TO"] = to_row
-    gfevd_with_to.loc["NET"] = gfevd_with_to.loc["TO"] - gfevd_with_to.loc[gfevd_with_to.index != "TO"].sum(axis=0) + np.append(np.diag(GFEVD_avg), [0])
+    # FROM/TO/NET 행 추가 (단순화)
+    diag = np.diag(GFEVD_avg)
+    from_values = GFEVD_avg.sum(axis=1) - diag       # 행합 - 대각
+    to_values = GFEVD_avg.sum(axis=0) - diag          # 열합 - 대각
+    net_values = to_values - from_values               # NET = TO - FROM
+    tci = from_values.sum() / N                        # TCI
 
-    # NET 행 재계산
-    to_values = to_row.drop("FROM").values
-    from_values = GFEVD_table["FROM"].values
-    net_values = to_values - from_values
-    net_row = pd.Series(np.append(net_values, np.nan), index=gfevd_with_to.columns, name="NET")
+    gfevd_with_to = pd.DataFrame(GFEVD_avg, index=columns, columns=columns)
+    gfevd_with_to["FROM"] = from_values
+    to_row = pd.Series(np.append(to_values, tci), index=list(columns) + ["FROM"])
+    net_row = pd.Series(np.append(net_values, np.nan), index=list(columns) + ["FROM"])
+    gfevd_with_to.loc["TO"] = to_row
     gfevd_with_to.loc["NET"] = net_row
 
     results = {
