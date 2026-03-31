@@ -172,7 +172,9 @@ def plot_hedge_ratios(hedge_ratios, index, pairs=None, save=True):
     for idx, pair in enumerate(pairs):
         ax = axes[idx]
         values = hedge_ratios[pair]
-        dates = index[-len(values):]
+        n = min(len(values), len(index))
+        values = values[-n:]
+        dates = index[-n:]
         ax.plot(dates, values, linewidth=0.8, color="navy")
         avg = np.mean(values)
         ax.axhline(y=avg, color="red", linestyle="--", linewidth=0.6,
@@ -207,7 +209,9 @@ def plot_portfolio_weights(w_dict, index, columns, save=True):
     for idx, (name, key) in enumerate(zip(portfolio_names, weight_keys)):
         ax = axes[idx]
         w = w_dict[key]
-        dates = index[-w.shape[0]:]
+        n = min(w.shape[0], len(index))
+        w = w[-n:]
+        dates = index[-n:]
 
         ax.stackplot(dates, w.T, labels=columns, colors=colors[:len(columns)], alpha=0.8)
         ax.set_ylabel("Weight")
@@ -239,7 +243,9 @@ def plot_cumulative_returns(port_results, index, save=True):
 
     for name, key, color, style in zip(names, keys, colors, styles):
         r = port_results[key]
-        dates = index[-len(r):]
+        n = min(len(r), len(index))
+        r = r[-n:]
+        dates = index[-n:]
         cum_r = np.cumsum(r)
         ax.plot(dates, cum_r, color=color, linestyle=style, label=name, linewidth=1.2)
 

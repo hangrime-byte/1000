@@ -142,7 +142,7 @@ def minimum_connectedness_portfolio(pci, method="Fisher"):
     return w
 
 
-def compute_dynamic_portfolios(returns, Sigma_series, PCI_series, columns=None):
+def compute_dynamic_portfolios(returns, Sigma_series, PCI_series=None, columns=None):
     """동적 포트폴리오 가중치 및 성과를 계산한다.
 
     Args:
@@ -154,14 +154,25 @@ def compute_dynamic_portfolios(returns, Sigma_series, PCI_series, columns=None):
     Returns:
         results: dict with portfolio weights and performance
     """
-    T = Sigma_series.shape[0]
+    T_sigma = Sigma_series.shape[0]
     N = Sigma_series.shape[1]
+
+    # PCI와 Sigma 길이가 다를 수 있음 (TVP-VAR vs DCC-GARCH)
+    if PCI_series is not None:
+        T_pci = PCI_series.shape[0]
+        T = min(T_sigma, T_pci)
+    else:
+        T = T_sigma
 
     if columns is None:
         columns = [f"Var{i+1}" for i in range(N)]
 
     returns_np = returns.values if isinstance(returns, pd.DataFrame) else returns
     returns_aligned = returns_np[-T:]
+
+    # Sigma와 PCI도 뒤에서 T개만 사용 (정렬)
+    Sigma_aligned = Sigma_series[-T:]
+    PCI_aligned = PCI_series[-T:] if PCI_series is not None else None
 
     # 가중치 저장
     w_mvp = np.zeros((T, N))
@@ -170,7 +181,7 @@ def compute_dynamic_portfolios(returns, Sigma_series, PCI_series, columns=None):
     w_equal = np.ones((T, N)) / N
 
     for t in range(T):
-        Sigma_t = Sigma_series[t]
+        Sigma_t = Sigma_aligned[t]
 
         # 양정치 보장
         eigvals, eigvecs = np.linalg.eigh(Sigma_t)
@@ -184,8 +195,11 @@ def compute_dynamic_portfolios(returns, Sigma_series, PCI_series, columns=None):
         w_mcp[t] = minimum_correlation_portfolio(Sigma_t)
 
         # MCoP
-        pci_t = PCI_series[t]
-        w_mcop[t] = minimum_connectedness_portfolio(pci_t, method="Fisher")
+        if PCI_aligned is not None:
+            pci_t = PCI_aligned[t]
+            w_mcop[t] = minimum_connectedness_portfolio(pci_t, method="Fisher")
+        else:
+            w_mcop[t] = w_equal[t]
 
     # 포트폴리오 수익률 계산
     r_mvp = np.sum(w_mvp * returns_aligned, axis=1)

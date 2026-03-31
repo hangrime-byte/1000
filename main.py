@@ -20,6 +20,7 @@ warnings.filterwarnings("ignore")
 
 from data_loader import load_data, TICKERS, ASSET_NAMES
 from connectedness import dynamic_connectedness
+from dcc_garch import DCC_GARCH
 from hedge_ratio import (
     compute_hedge_ratios,
     compute_portfolio_weights,
@@ -33,9 +34,9 @@ from visualization import generate_all_figures
 # 분석 파라미터
 # ============================================================
 NLAG = 1          # VAR 시차
-NFORE = 20        # GFEVD 예측 수평선 (H-step ahead), R ConnectednessApproach 기본값
+NFORE = 10        # GFEVD 예측 수평선 (H-step ahead), R ConnectednessApproach 기본값
 KAPPA1 = 0.99     # Forgetting factor for VAR coefficients (Koop & Korobilis, 2014)
-KAPPA2 = 0.99     # Decay factor for error covariance (R패키지 기본값)
+KAPPA2 = 0.96     # Decay factor for error covariance (Antonakakis et al., 2020 벤치마크)
 USE_VOLATILITY = True   # True: 변동성 시계열, False: 수익률 시계열
 VOL_WINDOW = 5          # 변동성 롤링 윈도우
 
@@ -123,14 +124,19 @@ def main():
     )
 
     # --------------------------------------------------------
-    # 3. 헤지비율 및 포트폴리오 가중치
+    # 3. DCC-GARCH → 헤지비율 및 포트폴리오 가중치
     # --------------------------------------------------------
     print("\n" + "=" * 70)
-    print("[Step 3] Hedge Ratios & Portfolio Weights")
+    print("[Step 3] DCC-GARCH → Hedge Ratios & Portfolio Weights")
+    print("  (논문 표준: TVP-VAR=연결성, DCC-GARCH=헤지비율)")
     print("=" * 70)
 
-    Sigma_series = conn_results["model"].Sigma
     columns = conn_results["columns"]
+
+    # DCC-GARCH 추정 (수익률 데이터 사용)
+    dcc_model = DCC_GARCH()
+    dcc_model.fit(returns)
+    Sigma_series = dcc_model.H  # DCC-GARCH 조건부 공분산
 
     # Kroner & Sultan (1993) 헤지비율
     hedge_ratios, hr_summary = compute_hedge_ratios(Sigma_series, columns)
