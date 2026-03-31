@@ -36,9 +36,9 @@ from visualization import generate_all_figures
 NLAG = 1          # VAR 시차
 NFORE = 10        # GFEVD 예측 수평선 (H-step ahead), R ConnectednessApproach 기본값
 KAPPA1 = 0.99     # Forgetting factor for VAR coefficients (Koop & Korobilis, 2014)
-KAPPA2 = 0.96     # Decay factor for error covariance (Antonakakis et al., 2020 벤치마크)
-USE_VOLATILITY = True   # True: 변동성 시계열, False: 수익률 시계열
-VOL_WINDOW = 5          # 변동성 롤링 윈도우
+KAPPA2 = 0.96     # Decay factor for error covariance (Antonakakis et al., 2020)
+USE_VOLATILITY = True   # True: 변동성 시계열 (논문 키워드: 변동성 전이)
+VOL_WINDOW = 22         # 변동성 롤링 윈도우 (22거래일 ≈ 1개월, 표준)
 
 OUTPUT_DIR = "results"
 

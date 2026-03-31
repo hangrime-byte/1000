@@ -117,28 +117,15 @@ def minimum_connectedness_portfolio(pci, method="Fisher"):
     for i in range(N):
         C[i, i] = row_sums[i] if row_sums[i] > 0 else 1.0
 
-    # [0, 1] 범위로 정규화 (상관 유사 행렬)
-    max_val = np.max(np.abs(C))
-    if max_val > 0:
-        C_norm = C / max_val
-    else:
-        return np.ones(N) / N
-    C_norm = np.clip(C_norm, -0.999, 0.999)
-
-    if method == "Fisher":
-        # Fisher 변환: 연결성 → 비선형 스케일링 (높은 연결성 강조)
-        Z = 0.5 * np.log((1 + C_norm) / (1 - C_norm))
-        Z = (Z + Z.T) / 2
-    else:
-        Z = C_norm
-
+    # 연결성 행렬을 직접 "공분산 유사 행렬"로 사용
+    # Fisher 변환 없이 원시 연결성 값 사용 (inf 문제 회피)
     # 양정치 보장
-    eigvals, eigvecs = np.linalg.eigh(Z)
+    eigvals, eigvecs = np.linalg.eigh(C)
     eigvals = np.maximum(eigvals, 1e-6)
-    Z = eigvecs @ np.diag(eigvals) @ eigvecs.T
-    Z = (Z + Z.T) / 2
+    C_pd = eigvecs @ np.diag(eigvals) @ eigvecs.T
+    C_pd = (C_pd + C_pd.T) / 2
 
-    w = minimum_variance_portfolio(Z)
+    w = minimum_variance_portfolio(C_pd)
     return w
 
 
