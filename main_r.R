@@ -79,10 +79,19 @@ dca <- ConnectednessApproach(
   )
 )
 
-# 평균 연결성 테이블 (TABLE은 문자형 → 숫자 변환)
+# 평균 연결성 테이블 (TABLE은 문자형 → 숫자 변환, 텍스트 행 제외)
 cat("\n--- Average Connectedness Table ---\n")
-table_num <- apply(dca$TABLE, c(1, 2), as.numeric)
+n <- length(tickers)
+table_core <- dca$TABLE[1:n, 1:n]
+table_num <- matrix(as.numeric(table_core), nrow = n, dimnames = dimnames(table_core))
 print(round(table_num, 2))
+
+# FROM/TO/NET 출력
+cat("\nFROM: ", dca$TABLE[1:n, n+1], "\n")
+if (nrow(dca$TABLE) > n) {
+  cat("TO:   ", dca$TABLE[n+1, 1:n], "\n")
+  cat("NET:  ", dca$TABLE[n+2, 1:n], "\n")
+}
 
 # 평균 TCI
 avg_tci <- mean(dca$TCI)
@@ -97,17 +106,19 @@ cat("[Step 4] TVP-VAR Estimation for Hedge Ratios\n")
 cat(rep("=", 70), "\n", sep="")
 
 # TVP-VAR 모형 직접 추정하여 Q (시변 공분산) 추출
+bp <- BayesPrior(as.zoo(volatility), nlag = 1)
 tvpvar_model <- TVPVAR(as.zoo(volatility),
                        configuration = list(
                          l = c(0.99, 0.96),
                          nlag = 1,
-                         prior = "BayesPrior"
+                         prior = bp
                        ))
 
 # 헤지비율 (Kroner & Sultan, 1993)
 hr <- HedgeRatio(as.matrix(volatility), tvpvar_model$Q)
 cat("\n--- Average Hedge Ratios ---\n")
-hr_table <- apply(hr$TABLE, c(1, 2), as.numeric)
+hr_table <- matrix(as.numeric(hr$TABLE[1:n, 1:n]), nrow = n,
+                   dimnames = list(tickers, tickers))
 print(round(hr_table, 4))
 
 # ============================================================
@@ -241,8 +252,8 @@ cat("Saved: figures_r/cumulative_returns.png\n")
 # 결과 저장
 # ============================================================
 dir.create("results_r", showWarnings = FALSE)
-write.csv(table_num, "results_r/connectedness_table.csv")
-write.csv(hr_table, "results_r/hedge_ratios.csv")
+write.csv(dca$TABLE, "results_r/connectedness_table.csv")
+write.csv(hr$TABLE, "results_r/hedge_ratios.csv")
 write.csv(perf, "results_r/portfolio_performance.csv", row.names = FALSE)
 
 cat("\n", rep("=", 70), "\n", sep="")
