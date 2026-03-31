@@ -99,43 +99,35 @@ def minimum_connectedness_portfolio(pci, method="Fisher"):
     """최소연결성 포트폴리오 (MCoP) 가중치를 계산한다.
 
     Broadstock et al. (2022) 방법론:
-    연결성 행렬을 공분산 행렬 대신 사용하여 MVP와 동일 구조로 최적화
-
-    1. PCI_ij: 쌍별 연결성 지표 (GFEVD 기반)
-    2. Fisher 변환: z_ij = 0.5 * ln((1+c_ij)/(1-c_ij))
-    3. 연결성 행렬로 MVP 구조 적용
+    GFEVD의 off-diagonal 쌍별 연결성(PCI)을 공분산 유사 행렬로 변환 후
+    MVP와 동일 구조로 최적화. 연결성이 높은 자산의 비중을 줄인다.
 
     Args:
-        pci: N × N 쌍별 연결성 행렬 (정규화된 GFEVD의 off-diagonal 합 기반)
+        pci: N × N 대칭 쌍별 연결성 행렬 (GFEVD off-diagonal, 대칭화됨)
         method: "Fisher" (Fisher 변환) 또는 "raw" (원래 값)
 
     Returns:
         w: N × 1 최적 가중치
     """
     N = pci.shape[0]
-
-    # 연결성을 상관 유사 행렬로 변환
     C = pci.copy()
 
-    # 대각 원소를 1로 설정 (자기 연결성)
-    np.fill_diagonal(C, 1.0)
+    # 대각 원소: 각 변수의 총 연결성 (FROM 값) → 자기 "분산" 역할
+    row_sums = C.sum(axis=1)
+    for i in range(N):
+        C[i, i] = row_sums[i] if row_sums[i] > 0 else 1.0
 
-    # 대칭화
-    C = (C + C.T) / 2
-
-    # [-1, 1] 범위로 정규화
-    off_diag = C[~np.eye(N, dtype=bool)]
-    if off_diag.max() > 0:
-        C_norm = C / (np.abs(off_diag).max() + 1e-10)
+    # [0, 1] 범위로 정규화 (상관 유사 행렬)
+    max_val = np.max(np.abs(C))
+    if max_val > 0:
+        C_norm = C / max_val
     else:
-        C_norm = C
-    np.fill_diagonal(C_norm, 1.0)
+        return np.ones(N) / N
     C_norm = np.clip(C_norm, -0.999, 0.999)
 
     if method == "Fisher":
-        # Fisher 변환
+        # Fisher 변환: 연결성 → 비선형 스케일링 (높은 연결성 강조)
         Z = 0.5 * np.log((1 + C_norm) / (1 - C_norm))
-        np.fill_diagonal(Z, 1.0)
         Z = (Z + Z.T) / 2
     else:
         Z = C_norm
@@ -150,7 +142,7 @@ def minimum_connectedness_portfolio(pci, method="Fisher"):
     return w
 
 
-def compute_dynamic_portfolios(returns, Sigma_series, NPDC_series, columns=None):
+def compute_dynamic_portfolios(returns, Sigma_series, PCI_series, columns=None):
     """동적 포트폴리오 가중치 및 성과를 계산한다.
 
     Args:
@@ -192,7 +184,7 @@ def compute_dynamic_portfolios(returns, Sigma_series, NPDC_series, columns=None)
         w_mcp[t] = minimum_correlation_portfolio(Sigma_t)
 
         # MCoP
-        pci_t = NPDC_series[t]
+        pci_t = PCI_series[t]
         w_mcop[t] = minimum_connectedness_portfolio(pci_t, method="Fisher")
 
     # 포트폴리오 수익률 계산

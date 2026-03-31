@@ -103,12 +103,18 @@ def compute_connectedness_measures(theta_norm):
     # NPDC: Net Pairwise Directional Connectedness
     NPDC = theta_norm - theta_norm.T
 
+    # PCI: Pairwise Connectedness Index (GFEVD off-diagonal, 대칭화)
+    # Broadstock et al. (2022) MCoP에 사용
+    PCI = off_diag.copy()
+    PCI = (PCI + PCI.T) / 2  # 대칭화
+
     return {
         "TCI": TCI,
         "FROM": FROM,
         "TO": TO,
         "NET": NET,
         "NPDC": NPDC,
+        "PCI": PCI,
         "GFEVD": theta_norm,
     }
 
@@ -155,6 +161,7 @@ def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
     TO_series = np.zeros((T, N))
     NET_series = np.zeros((T, N))
     NPDC_series = np.zeros((T, N, N))
+    PCI_series = np.zeros((T, N, N))  # MCoP용 대칭 쌍별 연결성
     GFEVD_sum = np.zeros((N, N))
 
     for t in range(T):
@@ -172,6 +179,7 @@ def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
         TO_series[t] = measures["TO"]
         NET_series[t] = measures["NET"]
         NPDC_series[t] = measures["NPDC"]
+        PCI_series[t] = measures["PCI"]
         GFEVD_sum += theta_norm
 
     # 평균 GFEVD 테이블
@@ -205,6 +213,7 @@ def dynamic_connectedness(data, nlag=1, nfore=10, kappa1=0.99, kappa2=0.96):
         "TO": TO_df,
         "NET": NET_df,
         "NPDC": NPDC_series,
+        "PCI": PCI_series,
         "GFEVD_table": gfevd_with_to,
         "model": model,
         "index": index,

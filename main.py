@@ -165,7 +165,7 @@ def main():
     print("=" * 70)
 
     port_results = compute_dynamic_portfolios(
-        returns, Sigma_series, conn_results["NPDC"], columns
+        returns, Sigma_series, conn_results["PCI"], columns
     )
 
     # --------------------------------------------------------
