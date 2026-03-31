@@ -183,7 +183,7 @@ mcop <- MinimumConnectednessPortfolio(
 )
 cat("\n--- Minimum Connectedness Portfolio (MCoP) ---\n")
 cat("Average weights:\n")
-print(round(colMeans(mcop$Weights), 4))
+print(round(colMeans(mcop$portfolio_weights), 4))
 
 # ============================================================
 # 6. 포트폴리오 성과 비교
@@ -210,7 +210,10 @@ ret_aligned <- tail(as.matrix(returns) / 100, T_port)
 r_equal <- rowSums(ret_aligned * (1/n))
 r_mvp <- rowSums(ret_aligned * tail(w_mvp, T_port))
 r_mcp <- rowSums(ret_aligned * tail(w_mcp, T_port))
-r_mcop <- rowSums(ret_aligned * tail(mcop$Weights, T_port))
+T_mcop <- nrow(mcop$portfolio_weights)
+T_port2 <- min(T_port, T_mcop)
+ret_aligned2 <- tail(as.matrix(returns) / 100, T_port2)
+r_mcop <- rowSums(ret_aligned2 * tail(mcop$portfolio_weights, T_port2))
 
 perf <- rbind(
   portfolio_stats(r_equal, "Equal Weight (1/N)"),
