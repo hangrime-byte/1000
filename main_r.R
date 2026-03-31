@@ -257,8 +257,9 @@ cat("Saved: figures_r/net_connectedness.png\n")
 
 # GFEVD 히트맵
 png("figures_r/gfevd_heatmap.png", width = 800, height = 600, res = 150)
-avg_gfevd <- dca$TABLE[1:n, 1:n]
-heatmap(as.matrix(avg_gfevd), Rowv = NA, Colv = NA,
+avg_gfevd <- matrix(as.numeric(dca$TABLE[1:n, 1:n]), nrow = n,
+                    dimnames = list(tickers, tickers))
+heatmap(avg_gfevd, Rowv = NA, Colv = NA,
         col = heat.colors(256), scale = "none",
         main = "Average Connectedness Table (GFEVD, %)",
         margins = c(6, 6))
