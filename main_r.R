@@ -79,9 +79,10 @@ dca <- ConnectednessApproach(
   )
 )
 
-# 평균 연결성 테이블
+# 평균 연결성 테이블 (TABLE은 문자형 → 숫자 변환)
 cat("\n--- Average Connectedness Table ---\n")
-print(round(dca$TABLE, 2))
+table_num <- apply(dca$TABLE, c(1, 2), as.numeric)
+print(round(table_num, 2))
 
 # 평균 TCI
 avg_tci <- mean(dca$TCI)
@@ -89,15 +90,25 @@ cat(sprintf("\nAverage TCI: %.2f%%\n", avg_tci))
 cat(sprintf("논문 보고치: 36.8%%\n"))
 
 # ============================================================
-# 4. 헤지비율 (Kroner & Sultan, 1993)
+# 4. TVP-VAR 별도 추정 (공분산 Q 추출용)
 # ============================================================
 cat("\n", rep("=", 70), "\n", sep="")
-cat("[Step 4] Hedge Ratios (Kroner & Sultan, 1993)\n")
+cat("[Step 4] TVP-VAR Estimation for Hedge Ratios\n")
 cat(rep("=", 70), "\n", sep="")
 
-hr <- HedgeRatio(as.matrix(volatility), dca$Q)
+# TVP-VAR 모형 직접 추정하여 Q (시변 공분산) 추출
+tvpvar_model <- TVPVAR(as.zoo(volatility),
+                       configuration = list(
+                         l = c(0.99, 0.96),
+                         nlag = 1,
+                         prior = "BayesPrior"
+                       ))
+
+# 헤지비율 (Kroner & Sultan, 1993)
+hr <- HedgeRatio(as.matrix(volatility), tvpvar_model$Q)
 cat("\n--- Average Hedge Ratios ---\n")
-print(round(hr$TABLE, 4))
+hr_table <- apply(hr$TABLE, c(1, 2), as.numeric)
+print(round(hr_table, 4))
 
 # ============================================================
 # 5. 포트폴리오 최적화
@@ -107,13 +118,13 @@ cat("[Step 5] Portfolio Optimization\n")
 cat(rep("=", 70), "\n", sep="")
 
 # 최소분산 포트폴리오 (MVP)
-mvp <- MinimumVariancePortfolio(as.matrix(returns) / 100, dca$Q)
+mvp <- MinimumVariancePortfolio(as.matrix(returns) / 100, tvpvar_model$Q)
 cat("\n--- Minimum Variance Portfolio (MVP) ---\n")
 cat("Average weights:\n")
 print(round(colMeans(mvp$Weights), 4))
 
 # 최소상관 포트폴리오 (MCP)
-mcp <- MinimumCorrelationPortfolio(as.matrix(returns) / 100, dca$Q)
+mcp <- MinimumCorrelationPortfolio(as.matrix(returns) / 100, tvpvar_model$Q)
 cat("\n--- Minimum Correlation Portfolio (MCP) ---\n")
 cat("Average weights:\n")
 print(round(colMeans(mcp$Weights), 4))
@@ -230,8 +241,8 @@ cat("Saved: figures_r/cumulative_returns.png\n")
 # 결과 저장
 # ============================================================
 dir.create("results_r", showWarnings = FALSE)
-write.csv(dca$TABLE, "results_r/connectedness_table.csv")
-write.csv(hr$TABLE, "results_r/hedge_ratios.csv")
+write.csv(table_num, "results_r/connectedness_table.csv")
+write.csv(hr_table, "results_r/hedge_ratios.csv")
 write.csv(perf, "results_r/portfolio_performance.csv", row.names = FALSE)
 
 cat("\n", rep("=", 70), "\n", sep="")
